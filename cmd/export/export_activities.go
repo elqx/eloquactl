@@ -1,14 +1,15 @@
 package export
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/elqx/eloqua-go/eloqua/bulk"
 )
 
-type Fields map[string]string
 
 var (
 	activityTypes = map[string]string{
@@ -22,7 +23,7 @@ var (
 		"wv": "WebVisit",
 		"pv": "PageView",
 	}
-
+/*
 	activityFields = map[string]Fields{
 		"es": Fields{
 			"ActivityId": "{{Activity.Id}}",
@@ -184,6 +185,7 @@ var (
 		},
 
 	}
+	*/
 )
 
 func NewCmdExportActivities() *cobra.Command {
@@ -191,6 +193,7 @@ func NewCmdExportActivities() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use: "activities --type=type --format=...",
+		Aliases: []string{"activity"},
 		Short: "",
 		Long: "",
 		Example: "",
@@ -205,14 +208,26 @@ func NewCmdExportActivities() *cobra.Command {
 			areSystemTimestampsInUTC, _ := cmd.Flags().GetBool("utc")
 			autoDeleteDuration, _ := cmd.Flags().GetString("auto-delete-duration")
 			dataRetentionDuration, _ := cmd.Flags().GetString("data-retention-duration")
-
 			defaultName := fmt.Sprintf("activities %v export", t)
 
 			fieldsStr, _ := cmd.Flags().GetString("fields")
 
 			fields := Fields{}
+			ctx := context.Background()
+
 			if fieldsStr == "" {
-				fields = activityFields[tflag]
+				// getting default activity fields for the activity type
+				opt := &bulk.ActivityFieldListQueryOptions{ActivityType: t}
+				// TODO: default fields should be cached 
+				r, err := client.Activities.ListFields(ctx, opt)
+				if err != nil {
+					fmt.Printf("Failed to list activity fields for activity type: %v", t)
+					os.Exit(1)
+				}
+
+				for _, f := range r.Items {
+					fields[f.InternalName] = f.Statement
+				}
 			} else {
 				err := parseFieldsStr(fieldsStr, &fields)
 				if err != nil {
@@ -221,32 +236,41 @@ func NewCmdExportActivities() *cobra.Command {
 				}
 			}
 
-			defaultFilter := fmt.Sprintf("'{{Activity.Type}}' = '%v' AND '{{Activity.CreatedAt}}' >= '2019-08-30'", t)
+			since, _ := cmd.Flags().GetString("since")
+			until, _ := cmd.Flags().GetString("until")
+
+			// should have Filter struct in the client library
+			var filter strings.Builder
+			filter.WriteString(fmt.Sprintf("'{{Activity.Type}}' = '%v'", t))
+			if since != "" && until == "" {
+				filter.WriteString(fmt.Sprintf(" AND '{{Activity.CreatedAt}}' >= '%v'", since))
+			}
+
+			if since == "" && until != "" {
+				filter.WriteString(fmt.Sprintf(" AND '{{Activity.CreatedAt}}' < '%v'", until))
+			}
+
+			if since != "" && until != "" {
+				filter.WriteString(fmt.Sprintf(" AND '{{Activity.CreatedAt}}' >= '%v'", since))
+				filter.WriteString(fmt.Sprintf(" AND '{{Activity.CreatedAt}}' < '%v'", until))
+			}
+
 			e := &bulk.Export{
 				AreSystemTimestampsInUTC: areSystemTimestampsInUTC,
 				AutoDeleteDuration: autoDeleteDuration,
 				DataRetentionDuration: dataRetentionDuration,
 				Name: defaultName,
 				Fields: fields,
-				Filter: defaultFilter,
+				Filter: filter.String(),
 				MaxRecords: maxRecords,
 			}
 			// exporting activities
-			export(fKey, e, os.Stdout)
-			/*
-			auth := viper.GetStringMap("auth")
-			username := fmt.Sprintf("%v\\%v", auth["company"].(string), auth["username"].(string))
-			password := auth["password"].(string)
-			accountInfo, err := bulk.GetAccountInfo(username, password)
-			if err != nil {
-				fmt.Println(err)
-			}
-			fmt.Println(accountInfo.Urls.Apis.Rest.Bulk)
-			*/
+			export(fKey, ctx, e, os.Stdout)
 		},
 	}
-
 	cmd.Flags().StringP("type", "t", "", "Activity type")
+	cmd.Flags().String("since", "", "The lower bound of the date range filter (inclusive).")
+	cmd.Flags().String("until", "", "The upper bound of the date range filter (noninclusive).")
 	// required flags
 	cmd.MarkFlagRequired("type")
 	//cmd.Flags().StringP("format", "f", "CSV", "Data format. Possible values: CSV, JSON. Default value: CSV.")

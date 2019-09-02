@@ -40,6 +40,8 @@ const (
 	apiVersion = "2.0"
 )
 
+type Fields map[string]string
+
 var client *bulk.BulkClient
 
 type ExportFunc func(context.Context, *bulk.Export) (*bulk.Export, error)
@@ -103,9 +105,7 @@ func NewCmdExport() *cobra.Command {
 	return cmd
 }
 
-func export(fKey string, e *bulk.Export, out io.Writer) {
-	ctx := context.Background()
-
+func export(fKey string, ctx context.Context, e *bulk.Export, out io.Writer) {
 	// create export definition
 	ex, err := efm.Execute(fKey, ctx, e)
 	if err != nil {
