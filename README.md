@@ -1,5 +1,6 @@
 # eloquactl
-Command line tool for Eloqua administration, data extraction and imports
+Command line tool for Eloqua administration, data extraction and imports.
+The tool is not yet ready for production usage.
 
 # Examples
 
