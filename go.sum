@@ -18,8 +18,8 @@ github.com/cpuguy83/go-md2man v1.0.10/go.mod h1:SmD6nW6nTyfqj6ABTjUi3V3JVMnlJmwc
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-sip13 v0.0.0-20181026042036-e10d5fee7954/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
-github.com/elqx/eloqua-go v0.0.0-20190902135627-d02911944d37 h1:OnCpcYCQhY69r/QzXzxnqA8qqsw47O0y6G8Qh3/z0LY=
-github.com/elqx/eloqua-go v0.0.0-20190902135627-d02911944d37/go.mod h1:4bufXcFb3niveAS/woc/J+NJn/5k/hqCsO3b3X9L7tY=
+github.com/elqx/eloqua-go v0.0.0-20190903090142-298fc64f91d6 h1:Viu+9Zn11krrfzickedTHRba1LQgRUAMcNzG+d/VShY=
+github.com/elqx/eloqua-go v0.0.0-20190903090142-298fc64f91d6/go.mod h1:4bufXcFb3niveAS/woc/J+NJn/5k/hqCsO3b3X9L7tY=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=

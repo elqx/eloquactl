@@ -265,7 +265,8 @@ func NewCmdExportActivities() *cobra.Command {
 				MaxRecords: maxRecords,
 			}
 			// exporting activities
-			export(fKey, ctx, e, os.Stdout)
+			opt := &ExportOptions{Export: e}
+			export(fKey, ctx, opt, os.Stdout)
 		},
 	}
 	cmd.Flags().StringP("type", "t", "", "Activity type")
@@ -275,6 +276,8 @@ func NewCmdExportActivities() *cobra.Command {
 	cmd.MarkFlagRequired("type")
 	//cmd.Flags().StringP("format", "f", "CSV", "Data format. Possible values: CSV, JSON. Default value: CSV.")
 	// register activities export function
-	efm.RegisterFunc(fKey, client.Activities.CreateExport)
+	efm.RegisterFunc(fKey, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
+		return client.Activities.CreateExport(ctx, opt.Export)
+	})
 	return cmd
 }

@@ -44,7 +44,15 @@ type Fields map[string]string
 
 var client *bulk.BulkClient
 
-type ExportFunc func(context.Context, *bulk.Export) (*bulk.Export, error)
+type ExportOptions struct {
+	// Used in CDO export
+	ParentId int
+
+	// Bulk export definition
+	Export *bulk.Export
+}
+
+type ExportFunc func(context.Context, *ExportOptions) (*bulk.Export, error)
 
 type ExportFuncMap map[string]ExportFunc
 
@@ -58,12 +66,13 @@ func (e ExportFuncMap) RegisterFunc(fKey string, f ExportFunc) error {
 	return nil
 }
 
-func (e ExportFuncMap) Execute(fKey string, ctx context.Context, ex *bulk.Export) (*bulk.Export, error) {
+func (e ExportFuncMap) Execute(fKey string, ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
 	if f, exists := e[fKey]; exists {
-		ex, err := f(ctx, ex)
+		ex, err := f(ctx, opt)
 		if err != nil {
 			return nil, err
 		}
+
 		return ex, nil
 	}
 	return nil, errors.New("export function does not exist")
@@ -105,9 +114,9 @@ func NewCmdExport() *cobra.Command {
 	return cmd
 }
 
-func export(fKey string, ctx context.Context, e *bulk.Export, out io.Writer) {
+func export(fKey string, ctx context.Context, opt *ExportOptions, out io.Writer) {
 	// create export definition
-	ex, err := efm.Execute(fKey, ctx, e)
+	ex, err := efm.Execute(fKey, ctx, opt)
 	if err != nil {
 		fmt.Println(err)
 	}

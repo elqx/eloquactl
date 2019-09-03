@@ -62,10 +62,13 @@ func NewCmdExportContacts() *cobra.Command {
 				MaxRecords: maxRecords,
 			}
 			// exporting activities
-			export(fKey, ctx, e, os.Stdout)
+			opt := &ExportOptions{Export: e}
+			export(fKey, ctx, opt, os.Stdout)
 		},
 	}
 	//cmd.Flags().StringP("filter", "f", "", "Contact filter. EML statement")
-	efm.RegisterFunc(fKey, client.Contacts.CreateExport)
+	efm.RegisterFunc(fKey, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
+		return client.Contacts.CreateExport(ctx, opt.Export)
+	})
 	return cmd
 }
