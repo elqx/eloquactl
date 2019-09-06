@@ -29,10 +29,12 @@ import (
 	"strconv"
 	"time"
 	"strings"
+	"regexp"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/elqx/eloqua-go/eloqua/bulk"
+	//cmdutil "github.com/elqx/eloquactl/pkg/util"
 )
 
 const (
@@ -80,6 +82,13 @@ func (e ExportFuncMap) Execute(fKey string, ctx context.Context, opt *ExportOpti
 
 func NewCmdExport() *cobra.Command {
 	// cmd represents the export command
+	// export command is parent command for a number of subcmmands like:
+	// elquactl export activties ...
+	// eloquactl export contacts ...
+	// eloquactl export cdos ...
+	// the command itself should accept a file (-f) with Export configuration of any Eloqua resource (activity, contact, cdo etc)
+	// the command should support json and yaml formats.
+	// the command should not have export configuration flags (i.e. --max-records etc.), those flags should be provided to the subcommands
 	cmd := &cobra.Command{
 		Use: "export",
 		Short: "export a resource from Eloqua",
@@ -89,14 +98,6 @@ func NewCmdExport() *cobra.Command {
 			fmt.Println("You must specify the type of resource to export. See 'eloquactl export -h' for help and examples.")
 		},
 	}
-
-	cmd.PersistentFlags().BoolP("utc", "u", true, "Whether or not system timestamps will be exported in UTC.")
-	cmd.PersistentFlags().String("auto-delete-duration", "PT12H", "Time until the definition will be deleted, expressed using the ISO-8601 standard.")
-	cmd.PersistentFlags().String("data-retention-duration", "PT12H", "The length of time exported data should remain in the staging area., expressed using the ISO-8601 standard.")
-	cmd.PersistentFlags().StringP("name", "n", "", "The name of the export definition.")
-	cmd.PersistentFlags().String("fields", "", "List of fields to be included in the export operation.")
-	cmd.PersistentFlags().String("filter", "", "The filter parameter uses Eloqua Markup Language to only return certain results.")
-	cmd.PersistentFlags().Int("max-records", 1000, "The maximum amount of records.")
 
 	auth := viper.GetStringMap("auth")
 	bulkURL :=  strings.Replace(viper.GetString("bulkUrl"),"{version}", apiVersion, 1)
@@ -112,6 +113,15 @@ func NewCmdExport() *cobra.Command {
 	cmd.AddCommand(NewCmdExportContacts())
 
 	return cmd
+}
+
+func (p *ExportOptions) Complete() {
+}
+
+func (p *ExportOptions) Validate() {
+}
+
+func (p *ExportOptions) Run() {
 }
 
 func export(fKey string, ctx context.Context, opt *ExportOptions, out io.Writer) {
@@ -204,4 +214,23 @@ func parseFieldsStr(str string, m *Fields) (error) {
 	}
 
 	return  nil
+}
+
+func checkDate(s string) error {
+	re := regexp.MustCompile(DATE_REGEX)
+	if match := re.MatchString(s); !match {
+		return errors.New("invalid date string")
+	}
+	return nil
+}
+
+func checkISO8601(s string) error {
+	// implementation missing
+	return nil
+}
+
+
+func generateName() string {
+	// implementation missing
+	return "generated name"
 }

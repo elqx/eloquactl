@@ -6,6 +6,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type ImportOptions struct {
+
+}
+
 func NewCmdImport() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "import",
