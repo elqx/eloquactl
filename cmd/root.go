@@ -96,6 +96,7 @@ func init() {
   }
 
   groups.AddTo(rootCmd)
+  templates.ActsAsRootCommand(rootCmd, groups...)
 }
 
 
