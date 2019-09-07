@@ -2,6 +2,7 @@ package templates
 
 import (
 	"strings"
+	"unicode"
 )
 
 const (
@@ -33,5 +34,5 @@ func UsageTemplate() string {
 		SectionExamples,
 		SectionSubcommands,
 	}
-	return strings.TrimSpace(strings.Join(sections, ""))
+	return strings.TrimRightFunc(strings.Join(sections, ""), unicode.IsSpace)
 }

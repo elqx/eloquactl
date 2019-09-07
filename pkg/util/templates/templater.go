@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"text/template"
@@ -44,7 +45,7 @@ func (t *templater) cmdGroupsString(cmd *cobra.Command) string {
 	for _, cmdGroup := range t.CommandGroups {
 		cmds := []string{cmdGroup.Message}
 		for _, c := range cmdGroup.Commands {
-			cmds = append(cmds, "  " + c.Name() + "  " + c.Short)
+			cmds = append(cmds, "  " + rpad(c.Name(), c.NamePadding()) + " " + c.Short)
 		}
 		groups = append(groups, strings.Join(cmds, "\n"))
 	}
@@ -69,4 +70,9 @@ func ActsAsRootCommand(cmd *cobra.Command, groups ...CommandGroup) {
 	}
 	cmd.SetHelpFunc(templater.HelpFunc())
 	cmd.SetUsageFunc(templater.UsageFunc())
+}
+
+func rpad(s string, padding int) string {
+	template := fmt.Sprintf("%%-%ds", padding)
+	return fmt.Sprintf(template, s)
 }
