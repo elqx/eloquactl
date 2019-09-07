@@ -35,12 +35,19 @@ func (t *templater) UsageFunc() func(*cobra.Command) error {
 		return tpl.Execute(os.Stdout, cmd)
 	}
 }
-
-//func (t *templater) cmdGroups(cmd *cobra.Command, all []*cobra.Command) []CommandGroup {
-//}
-
+/*
+func (t *templater) cmdGroups(cmd *cobra.Command, all []*cobra.Command) []CommandGroup {
+}
+*/
 func (t *templater) cmdGroupsString(cmd *cobra.Command) string {
 	groups := []string{}
+	for _, cmdGroup := range t.CommandGroups {
+		cmds := []string{cmdGroup.Message}
+		for _, c := range cmdGroup.Commands {
+			cmds = append(cmds, "  " + c.Name() + "  " + c.Short)
+		}
+		groups = append(groups, strings.Join(cmds, "\n"))
+	}
 	return strings.Join(groups, "\n\n")
 }
 
