@@ -13,6 +13,10 @@ import (
 	"github.com/elqx/eloqua-go/eloqua/bulk"
 )
 
+const (
+	EXPORT_CONTACTS_KEY = "contacts"
+)
+
 var (
 	exportContactsLong = templates.LongDesc(`
 		Export Eloqua contacts to a file or stdout.
@@ -66,15 +70,15 @@ func NewCmdExportContacts() *cobra.Command {
 	cmd.Flags().BoolP("utc", "u", true, "Whether or not system timestamps will be exported in UTC.")
 	cmd.Flags().String("fields", "", "List of fields to be included in the export operation.")
 	cmd.Flags().Int("max-records", 1000, "The maximum amount of records.")
-	cmd.Flags().String("create-at", "", "The date when the contact was created.")
+	cmd.Flags().String("created-at", "", "The date when the contact was created.")
 	cmd.Flags().String("created-after", "", "The date when the contact was created.")
 	cmd.Flags().String("updated-at", "", "The date when the contact was updated.")
 	cmd.Flags().String("updated-after", "", "The date when the contact was updatd.")
 	cmd.Flags().StringSlice("email-addresses", []string{}, "Contacts' email addresses.")
 	//cmd.Flags().StringP("filter", "f", "", "Contact filter. EML statement")
-	//efm.RegisterFunc(fKey, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
-	//	return client.Contacts.CreateExport(ctx, opt.Export)
-	//})
+	efm.RegisterFunc(EXPORT_CONTACTS_KEY, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
+		return client.Contacts.CreateExport(ctx, opt.Export)
+	})
 	return cmd
 }
 
@@ -204,22 +208,20 @@ func (p *ExportContactsOptions) Run(cmd *cobra.Command) error {
 	}
 	// should have Filter struct in the client library
 	//var filter strings.Builder
-	e := bulk.Export{
+	e := &bulk.Export{
 		AreSystemTimestampsInUTC: p.UTC,
 		AutoDeleteDuration: p.AutoDeleteDuration,
 		DataRetentionDuration: p.DataRetentionDuration,
 		Name: p.Name,
 		Fields: fields,
-		Filter: "'{{Contact.CreatedAt}}' >= 2019-09-05",
+		Filter: "'{{Contact.CreatedAt}}' >= '2019-09-05'",
 		//Filter: p.Filter,
 		MaxRecords: p.MaxRecords,
 	}
 
-	exp, err := client.Contacts.CreateExport(ctx, &e)
-	if err != nil {
-		return err
-	}
-	fmt.Println(exp.Uri)
+	opt := &ExportOptions{Export: e}
+	export(EXPORT_CONTACTS_KEY, ctx, opt, os.Stdout)
+
 	return nil
 }
 
