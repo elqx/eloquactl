@@ -23,13 +23,6 @@ const (
 	SectionFlags = `{{if .HasLocalFlags}}Options:
 {{flagsUsages .LocalFlags}}
 {{end}}`
-
-/*
-	SectionFlags = `{{if .HasLocalFlags}}Options:
-{{flagsUsages .LocalFlags}}
-
-{{end}`
-*/
 )
 
 // template for help command
