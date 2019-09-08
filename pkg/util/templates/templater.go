@@ -1,12 +1,14 @@
 package templates
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
 	"text/template"
 
 	"github.com/spf13/cobra"
+	flag "github.com/spf13/pflag"
 )
 
 type templater struct {
@@ -56,6 +58,7 @@ func (t *templater) templateFuncs() template.FuncMap {
 	return template.FuncMap{
 		"trim": strings.TrimSpace,
 		"cmdGroupsString": t.cmdGroupsString,
+		"flagsUsages": flagsUsages,
 	}
 }
 
@@ -75,4 +78,29 @@ func ActsAsRootCommand(cmd *cobra.Command, groups ...CommandGroup) {
 func rpad(s string, padding int) string {
 	template := fmt.Sprintf("%%-%ds", padding)
 	return fmt.Sprintf(template, s)
+}
+
+func flagsUsages(f *flag.FlagSet) string {
+	x := new(bytes.Buffer)
+
+	f.VisitAll(func(flag *flag.Flag) {
+		if flag.Hidden {
+			return
+		}
+
+		format := "--%s=%s: %s\n"
+
+		if flag.Value.Type() == "string" {
+			format = "--%s='%s': %s\n"
+		}
+
+		if len(flag.Shorthand) > 0 {
+			format = "  -%s, " + format
+		} else {
+			format = "   %s   " + format
+		}
+
+		fmt.Fprintf(x, format, flag.Shorthand, flag.Name, flag.DefValue, flag.Usage)
+	})
+	return x.String()
 }

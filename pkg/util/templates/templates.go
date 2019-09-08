@@ -19,6 +19,17 @@ const (
 	SectionSubcommands = `{{if .HasAvailableSubCommands}}{{cmdGroupsString .}}
 
 {{end}}`
+
+	SectionFlags = `{{if .HasLocalFlags}}Options:
+{{flagsUsages .LocalFlags}}
+{{end}}`
+
+/*
+	SectionFlags = `{{if .HasLocalFlags}}Options:
+{{flagsUsages .LocalFlags}}
+
+{{end}`
+*/
 )
 
 // template for help command
@@ -33,6 +44,7 @@ func UsageTemplate() string {
 		SectionAliases,
 		SectionExamples,
 		SectionSubcommands,
+		SectionFlags,
 	}
 	return strings.TrimRightFunc(strings.Join(sections, ""), unicode.IsSpace)
 }
