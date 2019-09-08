@@ -15,24 +15,25 @@ import (
 
 const (
 	DATE_REGEX = "\\d{4}-\\d{2}-\\d{2}"
+	EXPORT_ACTIVITIES_KEY = "activities"
 )
 
 var (
-	activityTypes = map[string]string{
-		"es": "EmailSend",
-		"eo": "EmailOpen",
-		"ec": "EmailClickthrough",
-		"bb": "Bounceback",
-		"fs": "FormSubmit",
-		"su": "Subscribe",
-		"un": "Unsubscribe",
-		"wv": "WebVisit",
-		"pv": "PageView",
+	activityTypes = map[string]bool{
+		"EmailSend": true,
+		"EmailOpen": true,
+		"EmailClickthrough": true,
+		"Bounceback": true,
+		"FormSubmit": true,
+		"Subscribe": true,
+		"Unsubscribe": true,
+		"WebVisit": true,
+		"PageView": true,
 	}
 
 	exportActivitiesLong = templates.LongDesc(`
 		Export Eloqua activities to a file or stdout.
-		
+
 		JSON and CSV file formats are supported`)
 
 	exportActivitiesExample = templates.Examples(`
@@ -253,9 +254,9 @@ func NewCmdExportActivities() *cobra.Command {
 	cmd.MarkFlagRequired("type")
 	//cmd.Flags().StringP("format", "f", "CSV", "Data format. Possible values: CSV, JSON. Default value: CSV.")
 	// register activities export function
-	//efm.RegisterFunc(fKey, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
-	//	return client.Activities.CreateExport(ctx, opt.Export)
-	//})
+	efm.RegisterFunc(EXPORT_ACTIVITIES_KEY, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
+		return client.Activities.CreateExport(ctx, opt.Export)
+	})
 	return cmd
 }
 
@@ -276,7 +277,7 @@ func (p *ExportActivitiesOptions) Complete(cmd *cobra.Command) error {
 
 	p.MaxRecords = cmdutil.GetFlagInt(cmd, "max-records")
 	p.Since = cmdutil.GetFlagString(cmd, "since")
-	p.Until = cmdutil.GetFlagString(cmd, "util")
+	p.Until = cmdutil.GetFlagString(cmd, "until")
 	p.ActivityType = cmdutil.GetFlagString(cmd, "type")
 
 	// filter should constructed differently
@@ -382,7 +383,7 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 		// fields should be cached
 	}
 
-	e := bulk.Export{
+	e := &bulk.Export{
 		AreSystemTimestampsInUTC: p.UTC,
 		AutoDeleteDuration: p.AutoDeleteDuration,
 		DataRetentionDuration: p.DataRetentionDuration,
@@ -392,10 +393,8 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 		MaxRecords: p.MaxRecords,
 	}
 
-	exp, err := client.Activities.CreateExport(ctx, &e)
-	if err != nil {
-		return err
-	}
-	fmt.Println(exp.Uri)
+	opt := &ExportOptions{Export: e}
+	export(EXPORT_ACTIVITIES_KEY, ctx, opt, os.Stdout)
+
 	return nil
 }
