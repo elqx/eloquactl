@@ -14,6 +14,10 @@ import (
 	cmdutil "github.com/elqx/eloquactl/pkg/util"
 )
 
+const (
+	EXPORT_CDOS_KEY = "cdos"
+)
+
 var (
 
 	exportCdosLong = templates.LongDesc(`
@@ -59,6 +63,11 @@ func NewCmdExportCdos() *cobra.Command {
 	cmd.Flags().BoolP("utc", "u", true, "Whether or not system timestamps will be exported in UTC.")
 	cmd.Flags().String("fields", "", "List of fields to be included in the export operation.")
 	cmd.Flags().Int("max-records", 1000, "The maximum amount of records.")
+
+	efm.RegisterFunc(EXPORT_CDOS_KEY, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
+		return client.Cdos.CreateExport(ctx, opt.ParentId, opt.Export)
+	})
+
 	return cmd
 }
 
@@ -164,7 +173,7 @@ func (p *ExportCdosOptions) Run(cmd *cobra.Command, args []string) error {
 
 	// should have Filter struct in the client library
 	//var filter strings.Builder
-	e := bulk.Export{
+	e := &bulk.Export{
 		AreSystemTimestampsInUTC: p.UTC,
 		AutoDeleteDuration: p.AutoDeleteDuration,
 		DataRetentionDuration: p.DataRetentionDuration,
@@ -173,10 +182,8 @@ func (p *ExportCdosOptions) Run(cmd *cobra.Command, args []string) error {
 		// Filter: "'{{Contact.CreatedAt}}' >= '2019-09-01'",
 		MaxRecords: p.MaxRecords,
 	}
-	exp, err := client.Cdos.CreateExport(ctx, parentId, &e)
-	if err != nil {
-		return err
-	}
-	fmt.Println(exp.Uri)
+
+	opt := &ExportOptions{ParentId: parentId, Export: e}
+	export(EXPORT_CDOS_KEY, ctx, opt, os.Stdout)
 	return nil
 }
