@@ -180,24 +180,6 @@ func download(ctx context.Context, syncId int, keys *[]string, printer *printers
 		}
 
 		(*printer).PrintResource(data.Items, w)
-		/*
-		for _, item := range data.Items {
-			//var str strings.Builder
-
-			//for _, k := range *keys {
-			//	v := item[k]
-			//	str.WriteString(v + "\t")
-			//}
-
-			printer.PrintResource(item, w)
-			
-			//for _, v := range item {
-			//	str.WriteString(v + "\t")
-			//}
-			
-			//io.WriteString(out, str.String() + "\n")
-		}
-		*/
 		w.Flush()
 
 		if !data.HasMore {
