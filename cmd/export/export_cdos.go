@@ -31,6 +31,11 @@ var (
 )
 
 type ExportCdosOptions struct {
+	PrintFlags *cmdutil.PrintFlags
+	NoHeaders bool
+	OutputFormat string
+	Sort bool
+
 	UTC bool
 	AutoDeleteDuration string
 	DataRetentionDuration string
@@ -40,8 +45,14 @@ type ExportCdosOptions struct {
 	MaxRecords int
 }
 
+func NewExportCdosOptions() *ExportCdosOptions {
+	return &ExportCdosOptions{
+		PrintFlags: cmdutil.NewPrintFlags(),
+	}
+}
+
 func NewCmdExportCdos() *cobra.Command {
-	o := ExportCdosOptions{}
+	o := NewExportCdosOptions()
 	cmd := &cobra.Command{
 		Use: "cdos <NAME>",
 		Aliases: []string{"cdo"},
@@ -150,6 +161,7 @@ func (p *ExportCdosOptions) Run(cmd *cobra.Command, args []string) error {
 
 	fieldsStr, _ := cmd.Flags().GetString("fields")
 	fields := Fields{}
+	var keys []string
 	if fieldsStr == "" {
 		// getting default fields
 		// TODO: default fields should be cached
@@ -164,11 +176,17 @@ func (p *ExportCdosOptions) Run(cmd *cobra.Command, args []string) error {
 		}
 
 	} else {
-		err := parseFieldsStr(fieldsStr, &fields)
+		k, err := parseFieldsStr(fieldsStr, &fields)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		keys = k
+	}
+
+	printer, err := p.PrintFlags.ToPrinter()
+	if err != nil {
+		return err
 	}
 
 	// should have Filter struct in the client library
@@ -184,6 +202,6 @@ func (p *ExportCdosOptions) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	opt := &ExportOptions{ParentId: parentId, Export: e}
-	export(EXPORT_CDOS_KEY, ctx, opt, os.Stdout)
+	export(EXPORT_CDOS_KEY, ctx, opt, &keys, &printer)
 	return nil
 }

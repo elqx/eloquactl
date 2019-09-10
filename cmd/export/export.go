@@ -24,16 +24,18 @@ package export
 import (
 	"context"
 	"fmt"
-	"io"
+//	"io"
 	"errors"
 	"strconv"
 	"time"
 	"strings"
 	"regexp"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/elqx/eloqua-go/eloqua/bulk"
+	"github.com/elqx/eloquactl/pkg/printers"
 	//cmdutil "github.com/elqx/eloquactl/pkg/util"
 )
 
@@ -124,7 +126,7 @@ func (p *ExportOptions) Validate() {
 func (p *ExportOptions) Run() {
 }
 
-func export(fKey string, ctx context.Context, opt *ExportOptions, out io.Writer) {
+func export(fKey string, ctx context.Context, opt *ExportOptions, keys *[]string, printer *printers.ResourcePrinter) {
 	// create export definition
 	ex, err := efm.Execute(fKey, ctx, opt)
 	if err != nil {
@@ -137,12 +139,12 @@ func export(fKey string, ctx context.Context, opt *ExportOptions, out io.Writer)
 	}
 
 	// check sync status and download
-	if err := waitSyncAndDownload(ctx, sync, out); err != nil {
+	if err := waitSyncAndDownload(ctx, sync, keys,  printer); err != nil {
 		 fmt.Println(err)
 	}
 }
 
-func waitSyncAndDownload(ctx context.Context, sync *bulk.Sync, out io.Writer) (error) {
+func waitSyncAndDownload(ctx context.Context, sync *bulk.Sync, keys *[]string, printer *printers.ResourcePrinter) (error) {
 	syncId, err := strconv.Atoi(sync.Uri[7:])
 	if err != nil {
 		return err
@@ -160,30 +162,43 @@ func waitSyncAndDownload(ctx context.Context, sync *bulk.Sync, out io.Writer) (e
 		return errors.New("Failed to sync")
 	}
 
-	if err := download(ctx, syncId, out); err != nil {
+	if err := download(ctx, syncId, keys, printer); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func download(ctx context.Context, syncId int, out io.Writer) (error) {
+func download(ctx context.Context, syncId int, keys *[]string, printer *printers.ResourcePrinter) (error) {
 	opt := &bulk.QueryOptions{Limit: batchSize, Offset: 0}
+	w := printers.NewTabWriter(os.Stdout)
 
 	for {
 		data, err := client.Syncs.GetData(ctx, syncId, opt)
 		if err != nil {
 			return err
 		}
-		// TODO: format print
-		for _, item := range data.Items {
-			var str strings.Builder
 
-			for _, v := range item {
-				str.WriteString(v + "\t")
-			}
-			io.WriteString(out, str.String() + "\n")
+		(*printer).PrintResource(data.Items, w)
+		/*
+		for _, item := range data.Items {
+			//var str strings.Builder
+
+			//for _, k := range *keys {
+			//	v := item[k]
+			//	str.WriteString(v + "\t")
+			//}
+
+			printer.PrintResource(item, w)
+			
+			//for _, v := range item {
+			//	str.WriteString(v + "\t")
+			//}
+			
+			//io.WriteString(out, str.String() + "\n")
 		}
+		*/
+		w.Flush()
 
 		if !data.HasMore {
 			break
@@ -196,24 +211,28 @@ func download(ctx context.Context, syncId int, out io.Writer) (error) {
 }
 
 // parseFieldsStr parses fields string into a map of a field aliases and EML field representaions
-func parseFieldsStr(str string, m *Fields) (error) {
+// returns a slice of keys
+func parseFieldsStr(str string, m *Fields) ([]string, error) {
 	//m := make(map[string]string)
 	s := strings.Split(str, ",")
+	var k []string
 
 	// looping over the slice and parsing its items si
 	for _, si := range s {
 		ss := strings.Split(si, ":")
 
 		if len(ss) != 2 {
-			return errors.New("Failed parsing fields string.")
+			return nil,  errors.New("Failed parsing fields string.")
 		}
+
+		k = append(k, strings.Trim(ss[0], " "))
 
 		ss[0] = strings.Trim(ss[0], " ")
 		ss[1] = strings.Trim(ss[1], " ")
 		(*m)[ss[0]] = ss[1]
 	}
 
-	return  nil
+	return k, nil
 }
 
 func checkDate(s string) error {

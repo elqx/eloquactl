@@ -35,6 +35,11 @@ var (
 )
 
 type ExportContactsOptions struct {
+	PrintFlags *cmdutil.PrintFlags
+	NoHeaders bool
+	OutputFormat string
+	Sort bool
+
 	UTC bool
 	AutoDeleteDuration string
 	DataRetentionDuration string
@@ -50,8 +55,14 @@ type ExportContactsOptions struct {
 	UpdatedAfter string
 }
 
+func NewExportContactsOptions() *ExportContactsOptions {
+	return &ExportContactsOptions{
+		PrintFlags: cmdutil.NewPrintFlags(),
+	}
+}
+
 func NewCmdExportContacts() *cobra.Command {
-	o := &ExportContactsOptions{}
+	o := NewExportContactsOptions()
 
 	cmd := &cobra.Command{
 		Use: "contacts",
@@ -182,6 +193,7 @@ func (p *ExportContactsOptions) Run(cmd *cobra.Command) error {
 	// if fields are empty, should get the fields via api
 	// fields is a runtime option if not provided
 	fields := Fields{}
+	var keys []string
 	if len(p.Fields) == 0 {
 		// get fields via api and assign
 		// TODO: default fields should be cached 
@@ -195,17 +207,24 @@ func (p *ExportContactsOptions) Run(cmd *cobra.Command) error {
 			fields[f.InternalName] = f.Statement
 		}
 	} else {
-		err := parseFieldsStr(p.Fields, &fields)
+		k, err := parseFieldsStr(p.Fields, &fields)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		keys = k
 	}
 
 	if len(p.Filter) == 0 {
 		// get fields via api and construct the filter
 		// fields should be cached
 	}
+
+	printer, err := p.PrintFlags.ToPrinter()
+	if err != nil {
+		return err
+	}
+
 	// should have Filter struct in the client library
 	//var filter strings.Builder
 	e := &bulk.Export{
@@ -220,7 +239,7 @@ func (p *ExportContactsOptions) Run(cmd *cobra.Command) error {
 	}
 
 	opt := &ExportOptions{Export: e}
-	export(EXPORT_CONTACTS_KEY, ctx, opt, os.Stdout)
+	export(EXPORT_CONTACTS_KEY, ctx, opt, &keys, &printer)
 
 	return nil
 }

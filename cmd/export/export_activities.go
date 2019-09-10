@@ -212,6 +212,11 @@ var (
 // ExportActivitiesOptions declare the arguments accepted by the 'export activities' command
 // this struct should have all configurable properties of an export
 type ExportActivitiesOptions struct {
+	PrintFlags *cmdutil.PrintFlags
+	NoHeaders bool
+	OutputFormat string
+	Sort bool
+
 	UTC bool
 	AutoDeleteDuration string
 	DataRetentionDuration string
@@ -224,8 +229,14 @@ type ExportActivitiesOptions struct {
 	Until string
 }
 
+func NewExportActivitiesOptions() *ExportActivitiesOptions {
+	return &ExportActivitiesOptions{
+		PrintFlags: cmdutil.NewPrintFlags(),
+	}
+}
+
 func NewCmdExportActivities() *cobra.Command {
-	o := &ExportActivitiesOptions{}
+	o := NewExportActivitiesOptions()
 
 	cmd := &cobra.Command{
 		Use: "activities --type ACTIVITYTYPE",
@@ -240,6 +251,7 @@ func NewCmdExportActivities() *cobra.Command {
 		},
 	}
 	// bind flags to options struct fields
+	o.PrintFlags.AddFlags(cmd)
 	cmdutil.AddStagingFlags(cmd)
 	cmdutil.AddNameFlag(cmd)
 	cmd.Flags().BoolP("utc", "u", true, "Whether or not system timestamps will be exported in UTC.")
@@ -299,6 +311,9 @@ func (p *ExportActivitiesOptions) Complete(cmd *cobra.Command) error {
 
 	p.Filter = filter.String()
 
+	p.NoHeaders = cmdutil.GetFlagBool(cmd, "no-headers")
+	p.OutputFormat = cmdutil.GetFlagString(cmd, "output")
+
 	return nil
 }
 
@@ -357,6 +372,7 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 	// if fields are empty, should get the fields via api
 	// fields is a runtime option if not provided
 	fields := Fields{}
+	var keys []string
 	if len(p.Fields) == 0 {
 		// get fields via api and assign
 		opt := &bulk.ActivityFieldListQueryOptions{ActivityType: p.ActivityType}
@@ -371,16 +387,22 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 			fields[f.InternalName] = f.Statement
 		}
 	} else {
-		err := parseFieldsStr(p.Fields, &fields)
+		k, err := parseFieldsStr(p.Fields, &fields)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		keys = k
 	}
 
 	if len(p.Filter) == 0 {
 		// get fields via api and construct the filter
 		// fields should be cached
+	}
+
+	printer, err := p.PrintFlags.ToPrinter()
+	if err != nil {
+		return err
 	}
 
 	e := &bulk.Export{
@@ -394,7 +416,7 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 	}
 
 	opt := &ExportOptions{Export: e}
-	export(EXPORT_ACTIVITIES_KEY, ctx, opt, os.Stdout)
+	export(EXPORT_ACTIVITIES_KEY, ctx, opt, &keys, &printer)
 
 	return nil
 }

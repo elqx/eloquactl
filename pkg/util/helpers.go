@@ -3,8 +3,10 @@ package util
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/elqx/eloquactl/pkg/printers"
 )
 
 func Er(msg interface{}) {
@@ -59,4 +61,41 @@ func GetFlagInt(cmd *cobra.Command, flag string) int {
 		fmt.Printf("error accessing flag %s for command %s: %v", flag, cmd.Name(), err)
 	}
 	return i
+}
+
+type PrintFlags struct {
+	NoHeaders *bool
+	OutputFormat *string
+}
+
+func NewPrintFlags() *PrintFlags {
+	outputFormat := ""
+	noHeaders := false
+	return &PrintFlags{
+		NoHeaders: &noHeaders,
+		OutputFormat: &outputFormat,
+	}
+}
+
+func (f *PrintFlags) AddFlags(cmd *cobra.Command) {
+	if f.OutputFormat != nil {
+		cmd.Flags().StringVarP(f.OutputFormat, "output", "o", *f.OutputFormat, "Output format. One of: json|table|name|jsonpath.")
+	}
+
+	if f.NoHeaders != nil {
+		cmd.Flags().BoolVar(f.NoHeaders, "no-headers", *f.NoHeaders, "When using the default (table) output format, don't print headers (default print headers).")
+	}
+}
+
+func (f * PrintFlags) ToPrinter() (printers.ResourcePrinter, error) {
+	var printer printers.ResourcePrinter
+	outputFormat := strings.ToLower(*f.OutputFormat)
+	fmt.Println("FORMAT", outputFormat)
+	switch outputFormat {
+		case "json":
+			printer = &printers.JsonPrinter{}
+		default:
+			printer = &printers.TablePrinter{}
+	}
+	return printer, nil
 }
