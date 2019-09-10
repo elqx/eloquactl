@@ -7,7 +7,7 @@ The tool is not yet ready for production usage.
 ```bash
 # exports Eloqua activities of type EmailSend
 eloquactl export activities \
-  --type=es \
+  --type=EmailSend \
   --since=2019-01-01
   
 # exports Eloqua contacts
