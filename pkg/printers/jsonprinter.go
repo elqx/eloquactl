@@ -2,11 +2,18 @@ package printers
 
 import (
 	"io"
+	"encoding/json"
 )
 
 type JsonPrinter struct {}
 
 func (p *JsonPrinter) PrintResource(r interface{}, w io.Writer) error {
-	// print json implementation
-	return nil
+	data, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	data = append(data, '\n')
+	_, err = w.Write(data)
+	return err
 }
