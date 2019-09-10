@@ -90,7 +90,6 @@ func (f *PrintFlags) AddFlags(cmd *cobra.Command) {
 func (f * PrintFlags) ToPrinter() (printers.ResourcePrinter, error) {
 	var printer printers.ResourcePrinter
 	outputFormat := strings.ToLower(*f.OutputFormat)
-	fmt.Println("FORMAT", outputFormat)
 	switch outputFormat {
 		case "json":
 			printer = &printers.JsonPrinter{}
