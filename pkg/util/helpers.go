@@ -87,12 +87,14 @@ func (f *PrintFlags) AddFlags(cmd *cobra.Command) {
 	}
 }
 
-func (f * PrintFlags) ToPrinter() (printers.ResourcePrinter, error) {
+func (f *PrintFlags) ToPrinter() (printers.ResourcePrinter, error) {
 	var printer printers.ResourcePrinter
-	outputFormat := strings.ToLower(*f.OutputFormat)
+	outputFormat := strings.ToLower(*f.OutputFormat) // table,json,jsonpath,ndj,csv,custom-columns
 	switch outputFormat {
 		case "json":
 			printer = &printers.JsonPrinter{}
+		case "ndj":
+			printer = &printers.NdjPrinter{}
 		default:
 			printer = &printers.TablePrinter{}
 	}
