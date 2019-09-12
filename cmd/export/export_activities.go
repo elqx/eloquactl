@@ -245,8 +245,6 @@ func NewCmdExportActivities() *cobra.Command {
 		Long: exportActivitiesLong,
 		Example: exportActivitiesExample,
 		Run: func(cmd *cobra.Command, args []string) {
-
-			fmt.Println("CONFIG FLAG", cmdutil.GetFlagString(cmd, "config"))
 			o.Complete(cmd)
 			o.Validate()
 			o.Run(cmd)
