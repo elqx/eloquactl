@@ -65,11 +65,7 @@ func Execute() {
 }
 
 func init() {
-  //cobra.OnInitialize(initConfig)
-  initConfig()
-  // Here you will define your flags and configuration settings.
-  // Cobra supports persistent flags, which, if defined here,
-  // will be global for your application.
+  cobra.OnInitialize(initConfig)
 
   rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.eloquactl.yaml)")
 
@@ -100,6 +96,7 @@ func initConfig() {
   if cfgFile != "" {
     // Use config file from the flag.
     viper.SetConfigFile(cfgFile)
+    fmt.Println("cfgFile", cfgFile)
   } else {
     // Find home directory.
     home, err := homedir.Dir()
@@ -117,7 +114,7 @@ func initConfig() {
 
   // If a config file is found, read it in.
   if err := viper.ReadInConfig(); err == nil {
-    //fmt.Println("Using config file:", viper.ConfigFileUsed())
+    fmt.Println("Using config file:", viper.ConfigFileUsed())
   }
 }
 

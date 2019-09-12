@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/elqx/eloqua-go/eloqua/bulk"
 	"github.com/elqx/eloquactl/pkg/util/templates"
 	cmdutil "github.com/elqx/eloquactl/pkg/util"
@@ -15,7 +14,6 @@ import (
 
 const (
 	DATE_REGEX = "\\d{4}-\\d{2}-\\d{2}"
-	EXPORT_ACTIVITIES_KEY = "activities"
 )
 
 var (
@@ -212,6 +210,7 @@ var (
 // ExportActivitiesOptions declare the arguments accepted by the 'export activities' command
 // this struct should have all configurable properties of an export
 type ExportActivitiesOptions struct {
+	Client func() *bulk.BulkClient
 	PrintFlags *cmdutil.PrintFlags
 	NoHeaders bool
 	OutputFormat string
@@ -231,6 +230,7 @@ type ExportActivitiesOptions struct {
 
 func NewExportActivitiesOptions() *ExportActivitiesOptions {
 	return &ExportActivitiesOptions{
+		Client: initClient,
 		PrintFlags: cmdutil.NewPrintFlags(),
 	}
 }
@@ -245,6 +245,8 @@ func NewCmdExportActivities() *cobra.Command {
 		Long: exportActivitiesLong,
 		Example: exportActivitiesExample,
 		Run: func(cmd *cobra.Command, args []string) {
+
+			fmt.Println("CONFIG FLAG", cmdutil.GetFlagString(cmd, "config"))
 			o.Complete(cmd)
 			o.Validate()
 			o.Run(cmd)
@@ -266,9 +268,6 @@ func NewCmdExportActivities() *cobra.Command {
 	cmd.MarkFlagRequired("type")
 	//cmd.Flags().StringP("format", "f", "CSV", "Data format. Possible values: CSV, JSON. Default value: CSV.")
 	// register activities export function
-	efm.RegisterFunc(EXPORT_ACTIVITIES_KEY, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
-		return client.Activities.CreateExport(ctx, opt.Export)
-	})
 	return cmd
 }
 
@@ -361,14 +360,7 @@ func (p *ExportActivitiesOptions) Validate() error {
 // Run executes the command
 func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 	ctx := context.Background()
-
-	auth := viper.GetStringMap("auth")
-	bulkURL :=  strings.Replace(viper.GetString("bulkUrl"),"{version}", apiVersion, 1)
-	username := fmt.Sprintf("%v\\%v", auth["company"], auth["username"])
-	password := auth["password"]
-
-	tr := &bulk.BasicAuthTransport{Username: username, Password: password.(string)}
-	client = bulk.NewClient(bulkURL, tr.Client())
+	client := p.Client()
 	// if fields are empty, should get the fields via api
 	// fields is a runtime option if not provided
 	fields := Fields{}
@@ -415,8 +407,12 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 		MaxRecords: p.MaxRecords,
 	}
 
-	opt := &ExportOptions{Export: e}
-	export(EXPORT_ACTIVITIES_KEY, ctx, opt, &keys, &printer)
+	e, err = client.Activities.CreateExport(ctx, e)
+	if err != nil {
+		return err
+	}
+
+	export( ctx, e, &keys, &printer, client)
 
 	return nil
 }

@@ -4,17 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	cmdutil "github.com/elqx/eloquactl/pkg/util"
 	"github.com/elqx/eloquactl/pkg/util/templates"
 	"github.com/elqx/eloqua-go/eloqua/bulk"
-)
-
-const (
-	EXPORT_CONTACTS_KEY = "contacts"
 )
 
 var (
@@ -35,6 +29,7 @@ var (
 )
 
 type ExportContactsOptions struct {
+	Client func() *bulk.BulkClient
 	PrintFlags *cmdutil.PrintFlags
 	NoHeaders bool
 	OutputFormat string
@@ -57,6 +52,7 @@ type ExportContactsOptions struct {
 
 func NewExportContactsOptions() *ExportContactsOptions {
 	return &ExportContactsOptions{
+		Client: initClient,
 		PrintFlags: cmdutil.NewPrintFlags(),
 	}
 }
@@ -87,9 +83,6 @@ func NewCmdExportContacts() *cobra.Command {
 	cmd.Flags().String("updated-after", "", "The date when the contact was updatd.")
 	cmd.Flags().StringSlice("email-addresses", []string{}, "Contacts' email addresses.")
 	//cmd.Flags().StringP("filter", "f", "", "Contact filter. EML statement")
-	efm.RegisterFunc(EXPORT_CONTACTS_KEY, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
-		return client.Contacts.CreateExport(ctx, opt.Export)
-	})
 	return cmd
 }
 
@@ -182,14 +175,7 @@ func (p *ExportContactsOptions) Validate() error {
 
 func (p *ExportContactsOptions) Run(cmd *cobra.Command) error {
 	ctx := context.Background()
-
-	auth := viper.GetStringMap("auth")
-	bulkURL :=  strings.Replace(viper.GetString("bulkUrl"),"{version}", apiVersion, 1)
-	username := fmt.Sprintf("%v\\%v", auth["company"], auth["username"])
-	password := auth["password"]
-
-	tr := &bulk.BasicAuthTransport{Username: username, Password: password.(string)}
-	client = bulk.NewClient(bulkURL, tr.Client())
+	client := p.Client()
 	// if fields are empty, should get the fields via api
 	// fields is a runtime option if not provided
 	fields := Fields{}
@@ -238,8 +224,12 @@ func (p *ExportContactsOptions) Run(cmd *cobra.Command) error {
 		MaxRecords: p.MaxRecords,
 	}
 
-	opt := &ExportOptions{Export: e}
-	export(EXPORT_CONTACTS_KEY, ctx, opt, &keys, &printer)
+	e, err = client.Contacts.CreateExport(ctx, e)
+	if err != nil {
+		return err
+	}
+
+	export(ctx, e, &keys, &printer, client)
 
 	return nil
 }

@@ -46,51 +46,7 @@ const (
 
 type Fields map[string]string
 
-var client *bulk.BulkClient
-
-type ExportOptions struct {
-	// Used in CDO export
-	ParentId int
-
-	// Bulk export definition
-	Export *bulk.Export
-}
-
-type ExportFunc func(context.Context, *ExportOptions) (*bulk.Export, error)
-
-type ExportFuncMap map[string]ExportFunc
-
-var efm = ExportFuncMap{}
-
-func (e ExportFuncMap) RegisterFunc(fKey string, f ExportFunc) error {
-	if _, exists := e[fKey]; exists {
-		return errors.New("Function already registered")
-	}
-	e[fKey] = f
-	return nil
-}
-
-func (e ExportFuncMap) Execute(fKey string, ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
-	if f, exists := e[fKey]; exists {
-		ex, err := f(ctx, opt)
-		if err != nil {
-			return nil, err
-		}
-
-		return ex, nil
-	}
-	return nil, errors.New("export function does not exist")
-}
-
 func NewCmdExport() *cobra.Command {
-	// cmd represents the export command
-	// export command is parent command for a number of subcmmands like:
-	// elquactl export activties ...
-	// eloquactl export contacts ...
-	// eloquactl export cdos ...
-	// the command itself should accept a file (-f) with Export configuration of any Eloqua resource (activity, contact, cdo etc)
-	// the command should support json and yaml formats.
-	// the command should not have export configuration flags (i.e. --max-records etc.), those flags should be provided to the subcommands
 	cmd := &cobra.Command{
 		Use: "export",
 		Short: "export a resource from Eloqua",
@@ -101,13 +57,6 @@ func NewCmdExport() *cobra.Command {
 		},
 	}
 
-	auth := viper.GetStringMap("auth")
-	bulkURL :=  strings.Replace(viper.GetString("bulkUrl"),"{version}", apiVersion, 1)
-	username := fmt.Sprintf("%v\\%v", auth["company"], auth["username"])
-	password := auth["password"]
-
-	tr := bulk.BasicAuthTransport{Username: username, Password: password.(string)}
-	client = bulk.NewClient(bulkURL, tr.Client())
 	// create subcommands
 	cmd.AddCommand(NewCmdExportActivities())
 	cmd.AddCommand(NewCmdExportAccounts())
@@ -117,21 +66,8 @@ func NewCmdExport() *cobra.Command {
 	return cmd
 }
 
-func (p *ExportOptions) Complete() {
-}
-
-func (p *ExportOptions) Validate() {
-}
-
-func (p *ExportOptions) Run() {
-}
-
-func export(fKey string, ctx context.Context, opt *ExportOptions, keys *[]string, printer *printers.ResourcePrinter) {
-	// create export definition
-	ex, err := efm.Execute(fKey, ctx, opt)
-	if err != nil {
-		fmt.Println(err)
-	}
+// export data given export definition
+func export(ctx context.Context, ex *bulk.Export, keys *[]string, printer *printers.ResourcePrinter, client *bulk.BulkClient) {
 	 // create sync definition
 	sync, err := client.Syncs.Create(ctx, &bulk.Sync{SyncedInstanceURI: ex.Uri})
 	if err != nil {
@@ -139,12 +75,13 @@ func export(fKey string, ctx context.Context, opt *ExportOptions, keys *[]string
 	}
 
 	// check sync status and download
-	if err := waitSyncAndDownload(ctx, sync, keys,  printer); err != nil {
+	if err := waitSyncAndDownload(ctx, sync, keys,  printer, client); err != nil {
 		 fmt.Println(err)
 	}
+
 }
 
-func waitSyncAndDownload(ctx context.Context, sync *bulk.Sync, keys *[]string, printer *printers.ResourcePrinter) (error) {
+func waitSyncAndDownload(ctx context.Context, sync *bulk.Sync, keys *[]string, printer *printers.ResourcePrinter, client *bulk.BulkClient) (error) {
 	syncId, err := strconv.Atoi(sync.Uri[7:])
 	if err != nil {
 		return err
@@ -162,14 +99,14 @@ func waitSyncAndDownload(ctx context.Context, sync *bulk.Sync, keys *[]string, p
 		return errors.New("Failed to sync")
 	}
 
-	if err := download(ctx, syncId, keys, printer); err != nil {
+	if err := download(ctx, syncId, keys, printer, client); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func download(ctx context.Context, syncId int, keys *[]string, printer *printers.ResourcePrinter) (error) {
+func download(ctx context.Context, syncId int, keys *[]string, printer *printers.ResourcePrinter, client *bulk.BulkClient) (error) {
 	opt := &bulk.QueryOptions{Limit: batchSize, Offset: 0}
 	w := printers.NewTabWriter(os.Stdout)
 
@@ -234,4 +171,16 @@ func checkISO8601(s string) error {
 func generateName() string {
 	// implementation missing
 	return "generated name"
+}
+
+func initClient() *bulk.BulkClient {
+	auth := viper.GetStringMap("auth")
+	bulkURL :=  strings.Replace(viper.GetString("bulkUrl"),"{version}", apiVersion, 1)
+	username := fmt.Sprintf("%v\\%v", auth["company"], auth["username"])
+	password := auth["password"]
+
+	tr := bulk.BasicAuthTransport{Username: username, Password: password.(string)}
+	client := bulk.NewClient(bulkURL, tr.Client())
+
+	return client
 }

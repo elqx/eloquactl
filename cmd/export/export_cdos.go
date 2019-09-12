@@ -2,20 +2,14 @@ package export
 
 import (
 	"fmt"
-	"strings"
 	"strconv"
 	"context"
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/elqx/eloqua-go/eloqua/bulk"
 	"github.com/elqx/eloquactl/pkg/util/templates"
 	cmdutil "github.com/elqx/eloquactl/pkg/util"
-)
-
-const (
-	EXPORT_CDOS_KEY = "cdos"
 )
 
 var (
@@ -31,6 +25,7 @@ var (
 )
 
 type ExportCdosOptions struct {
+	Client func() *bulk.BulkClient
 	PrintFlags *cmdutil.PrintFlags
 	NoHeaders bool
 	OutputFormat string
@@ -47,6 +42,7 @@ type ExportCdosOptions struct {
 
 func NewExportCdosOptions() *ExportCdosOptions {
 	return &ExportCdosOptions{
+		Client: initClient,
 		PrintFlags: cmdutil.NewPrintFlags(),
 	}
 }
@@ -74,11 +70,11 @@ func NewCmdExportCdos() *cobra.Command {
 	cmd.Flags().BoolP("utc", "u", true, "Whether or not system timestamps will be exported in UTC.")
 	cmd.Flags().String("fields", "", "List of fields to be included in the export operation.")
 	cmd.Flags().Int("max-records", 1000, "The maximum amount of records.")
-
+/*
 	efm.RegisterFunc(EXPORT_CDOS_KEY, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
 		return client.Cdos.CreateExport(ctx, opt.ParentId, opt.Export)
 	})
-
+*/
 	return cmd
 }
 
@@ -128,14 +124,7 @@ func (p *ExportCdosOptions) Validate(cmd *cobra.Command) error {
 
 func (p *ExportCdosOptions) Run(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	auth := viper.GetStringMap("auth")
-
-	bulkURL :=  strings.Replace(viper.GetString("bulkUrl"),"{version}", apiVersion, 1)
-	username := fmt.Sprintf("%v\\%v", auth["company"], auth["username"])
-	password := auth["password"]
-
-	tr := &bulk.BasicAuthTransport{Username: username, Password: password.(string)}
-	client = bulk.NewClient(bulkURL, tr.Client())
+	client := p.Client()
 
 	var parentId int
 	// check if args[0] is numeric or string
@@ -201,7 +190,12 @@ func (p *ExportCdosOptions) Run(cmd *cobra.Command, args []string) error {
 		MaxRecords: p.MaxRecords,
 	}
 
-	opt := &ExportOptions{ParentId: parentId, Export: e}
-	export(EXPORT_CDOS_KEY, ctx, opt, &keys, &printer)
+	e, err = client.Cdos.CreateExport(ctx, parentId, e)
+	if err != nil {
+		return err
+	}
+
+	export(ctx, e, &keys, &printer, client)
+
 	return nil
 }
