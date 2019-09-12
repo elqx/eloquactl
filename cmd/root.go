@@ -96,7 +96,6 @@ func initConfig() {
   if cfgFile != "" {
     // Use config file from the flag.
     viper.SetConfigFile(cfgFile)
-    fmt.Println("cfgFile", cfgFile)
   } else {
     // Find home directory.
     home, err := homedir.Dir()
@@ -114,7 +113,7 @@ func initConfig() {
 
   // If a config file is found, read it in.
   if err := viper.ReadInConfig(); err == nil {
-    fmt.Println("Using config file:", viper.ConfigFileUsed())
+  //  fmt.Println("Using config file:", viper.ConfigFileUsed())
   }
 }
 
