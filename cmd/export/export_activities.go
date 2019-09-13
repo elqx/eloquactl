@@ -222,7 +222,7 @@ type ExportActivitiesOptions struct {
 	Name string
 	Fields string
 	Filter string // raw filter should not be exposed to the user, but it can be in this struct (flags are exposed to the user, not this struct)
-	MaxRecords int
+	MaxRecords uint
 	ActivityType string
 	Since string
 	Until string
@@ -257,7 +257,8 @@ func NewCmdExportActivities() *cobra.Command {
 	cmd.Flags().BoolP("utc", "u", true, "Whether or not system timestamps will be exported in UTC.")
 	cmd.Flags().String("fields", "", "List of fields to be included in the export operation.")
 	//cmd.Flags().String("filter", "", "The filter parameter uses Eloqua Markup Language to only return certain results.")
-	cmd.Flags().Int("max-records", 1000, "The maximum amount of records.")
+	// max-records should be nil by default
+	cmd.Flags().Uint("max-records", 0, "The maximum amount of records.")
 
 	cmd.Flags().StringP("type", "t", "", "Activity type")
 	cmd.Flags().String("since", "", "The lower bound of the date range filter (inclusive).")
@@ -284,7 +285,7 @@ func (p *ExportActivitiesOptions) Complete(cmd *cobra.Command) error {
 	// fields flag does not have a default value, use fields from api
 	p.Fields = cmdutil.GetFlagString(cmd, "fields")
 
-	p.MaxRecords = cmdutil.GetFlagInt(cmd, "max-records")
+	p.MaxRecords = cmdutil.GetFlagUint(cmd, "max-records")
 	p.Since = cmdutil.GetFlagString(cmd, "since")
 	p.Until = cmdutil.GetFlagString(cmd, "until")
 	p.ActivityType = cmdutil.GetFlagString(cmd, "type")
@@ -402,7 +403,11 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 		Name: p.Name,
 		Fields: fields,
 		Filter: p.Filter,
-		MaxRecords: p.MaxRecords,
+	//	MaxRecords: p.MaxRecords,
+	}
+
+	if p.MaxRecords > 0 {
+		e.MaxRecords = p.MaxRecords
 	}
 
 	e, err = client.Activities.CreateExport(ctx, e)
@@ -410,7 +415,7 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 		return err
 	}
 
-	export( ctx, e, &keys, &printer, client)
+	export(ctx, e, &keys, &printer, client)
 
 	return nil
 }

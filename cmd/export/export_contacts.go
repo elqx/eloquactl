@@ -41,7 +41,7 @@ type ExportContactsOptions struct {
 	Name string
 	Fields string
 	Filter string // raw filter should not be exposed to the user, but it can be in this struct (flags are exposed to the user, not this struct)
-	MaxRecords int
+	MaxRecords uint
 	// contact filters are the fields
 	EmailAddresses []string
 	CreatedAt string
@@ -99,7 +99,7 @@ func (p *ExportContactsOptions) Complete(cmd *cobra.Command) error {
 	}
 
 	p.Fields = cmdutil.GetFlagString(cmd, "fields")
-	p.MaxRecords = cmdutil.GetFlagInt(cmd, "max-records")
+	p.MaxRecords = cmdutil.GetFlagUint(cmd, "max-records")
 	p.CreatedAt = cmdutil.GetFlagString(cmd, "created-at")
 	p.CreatedAfter = cmdutil.GetFlagString(cmd, "created-after")
 	p.UpdatedAt = cmdutil.GetFlagString(cmd, "updated-at")

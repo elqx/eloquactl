@@ -37,7 +37,7 @@ type ExportCdosOptions struct {
 	Name string
 	Fields string
 	Filter string
-	MaxRecords int
+	MaxRecords uint
 }
 
 func NewExportCdosOptions() *ExportCdosOptions {
@@ -91,7 +91,7 @@ func (p *ExportCdosOptions) Complete(cmd *cobra.Command) error {
 	}
 	p.Fields = cmdutil.GetFlagString(cmd, "fields")
 
-	p.MaxRecords = cmdutil.GetFlagInt(cmd, "max-records")
+	p.MaxRecords = cmdutil.GetFlagUint(cmd, "max-records")
 
 	return nil
 }

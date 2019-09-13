@@ -63,6 +63,14 @@ func GetFlagInt(cmd *cobra.Command, flag string) int {
 	return i
 }
 
+func GetFlagUint(cmd *cobra.Command, flag string) uint {
+	u, err := cmd.Flags().GetUint(flag)
+	if err != nil {
+		fmt.Printf("error accessing flag %s for command %s: %v", flag, cmd.Name(), err)
+	}
+	return u
+}
+
 type PrintFlags struct {
 	NoHeaders *bool
 	OutputFormat *string
