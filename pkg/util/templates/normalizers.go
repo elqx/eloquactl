@@ -1,12 +1,13 @@
 package templates
 
 import (
+	"github.com/MakeNowJust/heredoc/v2"
 	"strings"
 )
 
 const Indentation = `  `
 
-type normalizer struct { string }
+type normalizer struct{ string }
 
 func (s normalizer) trim() normalizer {
 	s.string = strings.TrimSpace(s.string)
@@ -24,6 +25,11 @@ func (s normalizer) indent() normalizer {
 	return s
 }
 
+func (s normalizer) heredoc() normalizer {
+	s.string = heredoc.Doc(s.string)
+	return s
+}
+
 // Examples normalizes a command's examples to follow the conventions.
 func Examples(s string) string {
 	if len(s) == 0 {
@@ -36,6 +42,6 @@ func LongDesc(s string) string {
 	if len(s) == 0 {
 		return s
 	}
-	return normalizer{s}.trim().string
-}
 
+	return normalizer{s}.heredoc().trim().string
+}

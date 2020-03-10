@@ -16,5 +16,3 @@ const (
 func NewTabWriter(out io.Writer) *tabwriter.Writer {
 	return tabwriter.NewWriter(out, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 }
-
-

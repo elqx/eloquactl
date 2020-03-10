@@ -1,19 +1,19 @@
 package export
 
 import (
-	"fmt"
-	"strconv"
 	"context"
+	"fmt"
 	"os"
+	"strconv"
+	//"encoding/json"
 
-	"github.com/spf13/cobra"
 	"github.com/elqx/eloqua-go/eloqua/bulk"
-	"github.com/elqx/eloquactl/pkg/util/templates"
 	cmdutil "github.com/elqx/eloquactl/pkg/util"
+	"github.com/elqx/eloquactl/pkg/util/templates"
+	"github.com/spf13/cobra"
 )
 
 var (
-
 	exportCdosLong = templates.LongDesc(`
 		Export Eloqua CDO to a file or stdout.
 
@@ -25,35 +25,27 @@ var (
 )
 
 type ExportCdosOptions struct {
-	Client func() *bulk.BulkClient
-	PrintFlags *cmdutil.PrintFlags
-	NoHeaders bool
-	OutputFormat string
-	Sort bool
-
-	UTC bool
-	AutoDeleteDuration string
-	DataRetentionDuration string
-	Name string
-	Fields string
-	Filter string
-	MaxRecords uint
+	Client      func() *bulk.BulkClient
+	PrintFlags  *cmdutil.PrintFlags
+	ExportFlags *cmdutil.ExportFlags
 }
 
 func NewExportCdosOptions() *ExportCdosOptions {
 	return &ExportCdosOptions{
-		Client: initClient,
-		PrintFlags: cmdutil.NewPrintFlags(),
+		Client:      initClient,
+		ExportFlags: cmdutil.NewExportFlags(),
+		PrintFlags:  cmdutil.NewPrintFlags(),
 	}
 }
 
 func NewCmdExportCdos() *cobra.Command {
 	o := NewExportCdosOptions()
+
 	cmd := &cobra.Command{
-		Use: "cdos <NAME>",
+		Use:     "cdos <NAME>",
 		Aliases: []string{"cdo"},
-		Short: "Export CDO to a file or stdout.",
-		Long: exportCdosLong,
+		Short:   "Export CDO to a file or stdout.",
+		Long:    exportCdosLong,
 		Example: exportCdosExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) < 1 {
@@ -65,58 +57,40 @@ func NewCmdExportCdos() *cobra.Command {
 			o.Run(cmd, args)
 		},
 	}
-	cmdutil.AddStagingFlags(cmd)
-	cmdutil.AddNameFlag(cmd)
-	cmd.Flags().BoolP("utc", "u", true, "Whether or not system timestamps will be exported in UTC.")
-	cmd.Flags().String("fields", "", "List of fields to be included in the export operation.")
-	cmd.Flags().Int("max-records", 1000, "The maximum amount of records.")
-/*
-	efm.RegisterFunc(EXPORT_CDOS_KEY, func(ctx context.Context, opt *ExportOptions) (*bulk.Export, error) {
-		return client.Cdos.CreateExport(ctx, opt.ParentId, opt.Export)
-	})
-*/
+	// Add shared flags
+	o.ExportFlags.AddFlags(cmd)
+	o.PrintFlags.AddFlags(cmd)
+
 	return cmd
 }
 
 func (p *ExportCdosOptions) Complete(cmd *cobra.Command) error {
-	p.AutoDeleteDuration = cmdutil.GetFlagString(cmd, "auto-delete-duration")
-	p.DataRetentionDuration = cmdutil.GetFlagString(cmd, "data-retention-duration")
+	/*
+		p.AutoDeleteDuration = cmdutil.GetFlagString(cmd, "auto-delete-duration")
+		p.DataRetentionDuration = cmdutil.GetFlagString(cmd, "data-retention-duration")
 
-	p.UTC = cmdutil.GetFlagBool(cmd, "utc")
+		p.UTC = cmdutil.GetFlagBool(cmd, "utc")
 
-	// name does not have a default, generate name if not specified
-	p.Name = cmdutil.GetFlagString(cmd, "name")
-	if len(p.Name) == 0 {
-		p.Name = generateName()
-	}
-	p.Fields = cmdutil.GetFlagString(cmd, "fields")
+		// name does not have a default, generate name if not specified
+		p.Name = cmdutil.GetFlagString(cmd, "name")
+		if len(p.Name) == 0 {
+			p.Name = generateName()
+		}
+		p.Fields = cmdutil.GetFlagString(cmd, "fields")
 
-	p.MaxRecords = cmdutil.GetFlagUint(cmd, "max-records")
-
+		p.MaxRecords = cmdutil.GetFlagUint(cmd, "max-records")
+	*/
 	return nil
 }
 
 func (p *ExportCdosOptions) Validate(cmd *cobra.Command) error {
-	// TODO: check that staging options follow the ISO-8601 standard
-	if err := checkISO8601(p.AutoDeleteDuration); err != nil {
-		fmt.Println("Failed validating auto-delete-duration. Value should follow ISO-8601 standard.")
+	// validate shared flags
+	if err := p.ExportFlags.Validate(); err != nil {
+		return err
 	}
 
-	if err := checkISO8601(p.DataRetentionDuration); err != nil {
-		fmt.Println("Failed validation data-retention-duration. Value should follow ISO-8601 standard.")
-	}
-	// check that name is no longer than 100 (based on doc)
-	if len(p.Name) > 100 {
-		fmt.Println("Export name must be no longer than 100 characters long.")
-	}
-
-	// validate fields if they were provided by the user
-	if len(p.Fields) > 0 {
-		// TODO: check regex expression
-	}
-
-	if p.MaxRecords < 0 {
-		fmt.Println("max-records should be greater than zero")
+	if err := p.PrintFlags.Validate(); err != nil {
+		return err
 	}
 
 	return nil
@@ -128,7 +102,7 @@ func (p *ExportCdosOptions) Run(cmd *cobra.Command, args []string) error {
 
 	var parentId int
 	// check if args[0] is numeric or string
-	parentId , err := strconv.Atoi(args[0])
+	parentId, err := strconv.Atoi(args[0])
 	if err != nil {
 		// name is given, find id
 		// TODO: check cache first
@@ -181,13 +155,17 @@ func (p *ExportCdosOptions) Run(cmd *cobra.Command, args []string) error {
 	// should have Filter struct in the client library
 	//var filter strings.Builder
 	e := &bulk.Export{
-		AreSystemTimestampsInUTC: p.UTC,
-		AutoDeleteDuration: p.AutoDeleteDuration,
-		DataRetentionDuration: p.DataRetentionDuration,
-		Name: p.Name,
-		Fields: fields,
+		AreSystemTimestampsInUTC: *p.ExportFlags.AreSystemTimestampsInUTC,
+		AutoDeleteDuration:       *p.ExportFlags.StagingFlags.AutoDeleteDuration,
+		DataRetentionDuration:    *p.ExportFlags.StagingFlags.DataRetentionDuration,
+		Name:                     *p.ExportFlags.Name,
+		Fields:                   fields,
 		// Filter: "'{{Contact.CreatedAt}}' >= '2019-09-01'",
-		MaxRecords: p.MaxRecords,
+		//MaxRecords: *p.ExportFlags.MaxRecords,
+	}
+
+	if *p.ExportFlags.MaxRecords > 0 {
+		e.MaxRecords = *p.ExportFlags.MaxRecords
 	}
 
 	e, err = client.Cdos.CreateExport(ctx, parentId, e)

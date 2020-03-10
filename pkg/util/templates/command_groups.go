@@ -5,7 +5,7 @@ import (
 )
 
 type CommandGroup struct {
-	Message string
+	Message  string
 	Commands []*cobra.Command
 }
 

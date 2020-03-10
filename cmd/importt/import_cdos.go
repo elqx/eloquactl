@@ -1,7 +1,6 @@
 package importt
 
 import (
-
 	cmdutil "github.com/elqx/eloquactl/pkg/util"
 	"github.com/spf13/cobra"
 )
@@ -11,10 +10,10 @@ type ImportCdoOptions struct {
 
 func NewCmdImportCdosCommand() {
 	cmd := &cobra.Command{
-		Use: "cdos",
+		Use:     "cdos",
 		Aliases: []string{"cdo"},
-		Short: "",
-		Long: "",
+		Short:   "",
+		Long:    "",
 		Example: "",
 		Run: func(cmd *cobra.Command, args []string) {
 		},

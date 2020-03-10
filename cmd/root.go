@@ -22,98 +22,100 @@ THE SOFTWARE.
 package cmd
 
 import (
-  "fmt"
-  "os"
-  "github.com/spf13/cobra"
+	"fmt"
+	"github.com/spf13/cobra"
+	"os"
 
-  "github.com/elqx/eloquactl/pkg/util/templates"
-  "github.com/elqx/eloquactl/cmd/export"
-  "github.com/elqx/eloquactl/cmd/decide"
-  "github.com/elqx/eloquactl/cmd/feed"
-  "github.com/elqx/eloquactl/cmd/importt"
+	"github.com/elqx/eloquactl/cmd/decide"
+	"github.com/elqx/eloquactl/cmd/export"
+	"github.com/elqx/eloquactl/cmd/feed"
+	"github.com/elqx/eloquactl/cmd/get"
+	"github.com/elqx/eloquactl/cmd/importt"
+	"github.com/elqx/eloquactl/pkg/util/templates"
 
-  homedir "github.com/mitchellh/go-homedir"
-  "github.com/spf13/viper"
-
+	homedir "github.com/mitchellh/go-homedir"
+	"github.com/spf13/viper"
 )
-
 
 var cfgFile string
 
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-  Use:   "eloquactl",
-  Short: "eloquactl is tool for Eloqua administration",
-  Long: `eloquactl is a CLI library for Go that empowers Eloqua
+	Use:   "eloquactl",
+	Short: "eloquactl is tool for Eloqua administration",
+	Long: `eloquactl is a CLI library for Go that empowers Eloqua
 administrators to do administartive tasks, integration and App Cloud Application
 developers to manage data imports and exports to and from Eloqua and
 custom Feeder, Decision and Action services.`,
-  Run: func(cmd *cobra.Command, args []string) {
-	cmd.Help()
-	os.Exit(1)
-  },
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Help()
+		os.Exit(1)
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-  if err := rootCmd.Execute(); err != nil {
-    fmt.Println(err)
-    os.Exit(1)
-  }
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 func init() {
-  cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initConfig)
 
-  rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.eloquactl.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.eloquactl.yaml)")
 
-  groups := templates.CommandGroups{
-	  {
-		  Message: "Bulk API commands",
-		  Commands: []*cobra.Command{
-			  export.NewCmdExport(),
-			  importt.NewCmdImport(),
-		  },
-	  },
-	  {
-		  Message: "App Cloud Developer commands",
-		  Commands: []*cobra.Command{
-			feed.NewCmdFeed(),
-			decide.NewCmdDecide(),
-		  },
-	  },
-  }
+	groups := templates.CommandGroups{
+		{
+			Message: "Rest API Commands",
+			Commands: []*cobra.Command{
+				get.NewCmdGet(),
+			},
+		},
+		{
+			Message: "Bulk API commands",
+			Commands: []*cobra.Command{
+				export.NewCmdExport(),
+				importt.NewCmdImport(),
+			},
+		},
+		{
+			Message: "App Cloud Developer commands",
+			Commands: []*cobra.Command{
+				feed.NewCmdFeed(),
+				decide.NewCmdDecide(),
+			},
+		},
+	}
 
-  groups.AddTo(rootCmd)
-  templates.ActsAsRootCommand(rootCmd, groups...)
+	groups.AddTo(rootCmd)
+	templates.ActsAsRootCommand(rootCmd, groups...)
 }
-
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-  if cfgFile != "" {
-    // Use config file from the flag.
-    viper.SetConfigFile(cfgFile)
-  } else {
-    // Find home directory.
-    home, err := homedir.Dir()
-    if err != nil {
-      fmt.Println(err)
-      os.Exit(1)
-    }
+	if cfgFile != "" {
+		// Use config file from the flag.
+		viper.SetConfigFile(cfgFile)
+	} else {
+		// Find home directory.
+		home, err := homedir.Dir()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
-    // Search config in home directory with name ".eloquactl" (without extension).
-    viper.AddConfigPath(home)
-    viper.SetConfigName(".eloquactl")
-  }
+		// Search config in home directory with name ".eloquactl" (without extension).
+		viper.AddConfigPath(home)
+		viper.SetConfigName(".eloquactl")
+	}
 
-  viper.AutomaticEnv() // read in environment variables that match
+	viper.AutomaticEnv() // read in environment variables that match
 
-  // If a config file is found, read it in.
-  if err := viper.ReadInConfig(); err == nil {
-  //  fmt.Println("Using config file:", viper.ConfigFileUsed())
-  }
+	// If a config file is found, read it in.
+	if err := viper.ReadInConfig(); err == nil {
+		//  fmt.Println("Using config file:", viper.ConfigFileUsed())
+	}
 }
-

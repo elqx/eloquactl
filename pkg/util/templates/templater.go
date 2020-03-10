@@ -6,13 +6,15 @@ import (
 	"os"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
 
 type templater struct {
-	HelpTemplate string
+	RootCmd       *cobra.Command
+	HelpTemplate  string
 	UsageTemplate string
 	CommandGroups
 }
@@ -38,16 +40,26 @@ func (t *templater) UsageFunc() func(*cobra.Command) error {
 		return tpl.Execute(os.Stdout, cmd)
 	}
 }
-/*
+
 func (t *templater) cmdGroups(cmd *cobra.Command, all []*cobra.Command) []CommandGroup {
+	if cmd == t.RootCmd {
+		return t.CommandGroups
+	}
+
+	return []CommandGroup{
+		{
+			Message:  "Available Commands:",
+			Commands: all,
+		},
+	}
 }
-*/
+
 func (t *templater) cmdGroupsString(cmd *cobra.Command) string {
 	groups := []string{}
-	for _, cmdGroup := range t.CommandGroups {
+	for _, cmdGroup := range t.cmdGroups(cmd, cmd.Commands()) {
 		cmds := []string{cmdGroup.Message}
 		for _, c := range cmdGroup.Commands {
-			cmds = append(cmds, "  " + rpad(c.Name(), c.NamePadding()) + " " + c.Short)
+			cmds = append(cmds, "  "+rpad(c.Name(), c.NamePadding())+" "+c.Short)
 		}
 		groups = append(groups, strings.Join(cmds, "\n"))
 	}
@@ -56,9 +68,11 @@ func (t *templater) cmdGroupsString(cmd *cobra.Command) string {
 
 func (t *templater) templateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"trim": strings.TrimSpace,
+		"trim":            strings.TrimSpace,
+		"trimRight":       func(s string) string { return strings.TrimRightFunc(s, unicode.IsSpace) },
+		"trimLeft":        func(s string) string { return strings.TrimLeftFunc(s, unicode.IsSpace) },
 		"cmdGroupsString": t.cmdGroupsString,
-		"flagsUsages": flagsUsages,
+		"flagsUsages":     flagsUsages,
 	}
 }
 
@@ -67,8 +81,9 @@ func ActsAsRootCommand(cmd *cobra.Command, groups ...CommandGroup) {
 		panic("nil root command")
 	}
 	templater := &templater{
+		RootCmd:       cmd,
 		UsageTemplate: UsageTemplate(),
-		HelpTemplate: HelpTemplate(),
+		HelpTemplate:  HelpTemplate(),
 		CommandGroups: groups,
 	}
 	cmd.SetHelpFunc(templater.HelpFunc())

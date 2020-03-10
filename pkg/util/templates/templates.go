@@ -12,7 +12,7 @@ const (
 {{end}}`
 
 	SectionExamples = `{{if .HasExample}}Examples:
-{{trim .Example}}
+{{trimRight .Example}}
 
 {{end}}`
 

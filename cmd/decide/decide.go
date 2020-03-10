@@ -9,9 +9,9 @@ import (
 func NewCmdDecide() *cobra.Command {
 	// cmd represents the decide command
 	cmd := &cobra.Command{
-		Use: "decide --decision=...",
-		Short: "import contacts to the decision service",
-		Long: `long description`,
+		Use:     "decide --decision=...",
+		Short:   "import contacts to the decision service",
+		Long:    `long description`,
 		Example: "examples",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println("decide called")

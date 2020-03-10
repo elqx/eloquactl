@@ -24,5 +24,5 @@ package main
 import "github.com/elqx/eloquactl/cmd"
 
 func main() {
-  cmd.Execute()
+	cmd.Execute()
 }

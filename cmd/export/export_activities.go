@@ -2,14 +2,16 @@ package export
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/elqx/eloqua-go/eloqua/bulk"
-	"github.com/elqx/eloquactl/pkg/util/templates"
 	cmdutil "github.com/elqx/eloquactl/pkg/util"
+	"github.com/elqx/eloquactl/pkg/util/templates"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -18,15 +20,15 @@ const (
 
 var (
 	activityTypes = map[string]bool{
-		"EmailSend": true,
-		"EmailOpen": true,
+		"EmailSend":         true,
+		"EmailOpen":         true,
 		"EmailClickthrough": true,
-		"Bounceback": true,
-		"FormSubmit": true,
-		"Subscribe": true,
-		"Unsubscribe": true,
-		"WebVisit": true,
-		"PageView": true,
+		"Bounceback":        true,
+		"FormSubmit":        true,
+		"Subscribe":         true,
+		"Unsubscribe":       true,
+		"WebVisit":          true,
+		"PageView":          true,
 	}
 
 	exportActivitiesLong = templates.LongDesc(`
@@ -203,35 +205,44 @@ var (
 		},
 
 	}
-	*/
+*/
 )
 
+type Validator interface {
+	Validate() error
+}
+
+type ValidatorFunc func() error
+
+func (fn ValidatorFunc) Validate() error {
+	return fn()
+}
 
 // ExportActivitiesOptions declare the arguments accepted by the 'export activities' command
 // this struct should have all configurable properties of an export
 type ExportActivitiesOptions struct {
 	Client func() *bulk.BulkClient
-	PrintFlags *cmdutil.PrintFlags
-	NoHeaders bool
-	OutputFormat string
-	Sort bool
 
-	UTC bool
-	AutoDeleteDuration string
-	DataRetentionDuration string
-	Name string
-	Fields string
-	Filter string // raw filter should not be exposed to the user, but it can be in this struct (flags are exposed to the user, not this struct)
-	MaxRecords uint
+	PrintFlags  *cmdutil.PrintFlags
+	ExportFlags *cmdutil.ExportFlags
+
+	// Command specific options.
+	// Used to construct the filter.
 	ActivityType string
-	Since string
-	Until string
+	Since        string
+	Until        string
+
+	// inherits Validator method
+	//Validate ValidatorFunc
 }
 
 func NewExportActivitiesOptions() *ExportActivitiesOptions {
 	return &ExportActivitiesOptions{
-		Client: initClient,
-		PrintFlags: cmdutil.NewPrintFlags(),
+		Client:      initClient,
+		ExportFlags: cmdutil.NewExportFlags(),
+		PrintFlags:  cmdutil.NewPrintFlags(),
+
+		//Validate: AggErrorValidator,
 	}
 }
 
@@ -239,10 +250,10 @@ func NewCmdExportActivities() *cobra.Command {
 	o := NewExportActivitiesOptions()
 
 	cmd := &cobra.Command{
-		Use: "activities --type ACTIVITYTYPE",
+		Use:     "activities --type ACTIVITYTYPE",
 		Aliases: []string{"activity"},
-		Short: "Export Eloqua activities to a file or stdout.",
-		Long: exportActivitiesLong,
+		Short:   "Export Eloqua activities to a file or stdout.",
+		Long:    exportActivitiesLong,
 		Example: exportActivitiesExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			o.Complete(cmd)
@@ -250,48 +261,26 @@ func NewCmdExportActivities() *cobra.Command {
 			o.Run(cmd)
 		},
 	}
-	// bind flags to options struct fields
+	// Add shared flags
+	o.ExportFlags.AddFlags(cmd)
 	o.PrintFlags.AddFlags(cmd)
-	cmdutil.AddStagingFlags(cmd)
-	cmdutil.AddNameFlag(cmd)
-	cmd.Flags().BoolP("utc", "u", true, "Whether or not system timestamps will be exported in UTC.")
-	cmd.Flags().String("fields", "", "List of fields to be included in the export operation.")
-	//cmd.Flags().String("filter", "", "The filter parameter uses Eloqua Markup Language to only return certain results.")
-	// max-records should be nil by default
-	cmd.Flags().Uint("max-records", 0, "The maximum amount of records.")
 
-	cmd.Flags().StringP("type", "t", "", "Activity type")
-	cmd.Flags().String("since", "", "The lower bound of the date range filter (inclusive).")
-	cmd.Flags().String("until", "", "The upper bound of the date range filter (noninclusive).")
-	// required flags
+	// Add flags specific to activities export
+	//AddStringFlag(cmd, o.ActivityType, "type", "t", "", "Activity type", checkDate, requiredOpt)
+	cmd.Flags().StringVarP(&o.ActivityType, "type", "t", "", "Activity type")
+	cmd.Flags().StringVar(&o.Since, "since", "", "The lower bound of the date range filter (inclusive).")
+	cmd.Flags().StringVar(&o.Until, "until", "", "The upper bound of the date range filter (noninclusive).")
+
+	// Required flags
 	cmd.MarkFlagRequired("type")
-	//cmd.Flags().StringP("format", "f", "CSV", "Data format. Possible values: CSV, JSON. Default value: CSV.")
-	// register activities export function
+
 	return cmd
 }
 
-// Complete completes the options with default values
-func (p *ExportActivitiesOptions) Complete(cmd *cobra.Command) error {
-	p.AutoDeleteDuration = cmdutil.GetFlagString(cmd, "auto-delete-duration")
-	p.DataRetentionDuration = cmdutil.GetFlagString(cmd, "data-retention-duration")
-
-	p.UTC = cmdutil.GetFlagBool(cmd, "utc")
-
-	// name does not have a default, generate name if not specified
-	p.Name = cmdutil.GetFlagString(cmd, "name")
-	if len(p.Name) == 0 {
-		p.Name = generateName()
-	}
-	// fields flag does not have a default value, use fields from api
-	p.Fields = cmdutil.GetFlagString(cmd, "fields")
-
-	p.MaxRecords = cmdutil.GetFlagUint(cmd, "max-records")
-	p.Since = cmdutil.GetFlagString(cmd, "since")
-	p.Until = cmdutil.GetFlagString(cmd, "until")
-	p.ActivityType = cmdutil.GetFlagString(cmd, "type")
-
-	// filter should constructed differently
-	// Use harcoded fields?
+// Complete completes the options provided
+func (p *ExportActivitiesOptions) Complete(cmd *cobra.Command) {
+	// StagingFlags, ExportFlags and PrintFlags are completed
+	// here should only be the completion of the filter option
 	var filter strings.Builder
 	filter.WriteString(fmt.Sprintf("'{{Activity.Type}}' = '%v'", p.ActivityType))
 	if p.Since != "" && p.Until == "" {
@@ -307,49 +296,39 @@ func (p *ExportActivitiesOptions) Complete(cmd *cobra.Command) error {
 		filter.WriteString(fmt.Sprintf(" AND '{{Activity.CreatedAt}}' < '%v'", p.Until))
 	}
 
-	p.Filter = filter.String()
-
-	p.NoHeaders = cmdutil.GetFlagBool(cmd, "no-headers")
-	p.OutputFormat = cmdutil.GetFlagString(cmd, "output")
-
-	return nil
+	str := filter.String()
+	p.ExportFlags.Filter = &str
 }
 
 // Validate validates the options provided
 func (p *ExportActivitiesOptions) Validate() error {
-	// validate activity type
-	if _, exists := activityTypes[p.ActivityType]; !exists {
-		// should print error, help and exit
-		fmt.Printf("--type value %v is not supported", p.ActivityType)
-	}
-
-	// TODO: check that staging options follow the ISO-8601 standard
-	if err := checkISO8601(p.AutoDeleteDuration); err != nil {
-		fmt.Println("Failed validating auto-delete-duration. Value should follow ISO-8601 standard.")
-	}
-
-	if err := checkISO8601(p.DataRetentionDuration); err != nil {
-		fmt.Println("Failed validation data-retention-duration. Value should follow ISO-8601 standard.")
-	}
-	// check that name is no longer than 100 (based on doc)
-	if len(p.Name) > 100 {
-		fmt.Println("Export name must be no longer than 100 characters long.")
-	}
-
-	// validate fields if they were provided by the user
-	if len(p.Fields) > 0 {
-		// TODO: check regex expression
-	}
-
-	if p.MaxRecords < 0 {
-		fmt.Println("max-records should be greater than zero")
-	}
-
-	if err := checkDate(p.Since); err != nil {
+	//var e Errors
+	// validate shared flags
+	if err := p.ExportFlags.Validate(); err != nil {
+		//e = aggregateError(err)
 		return err
 	}
 
+	if err := p.PrintFlags.Validate(); err != nil {
+		//e = aggregateError(err)
+		return err
+	}
+
+	// validate command specific flags
+	if _, exists := activityTypes[p.ActivityType]; !exists {
+		// should print error, help and exit
+		//err := errors.New("Unsuported activity type")
+		//e = aggregateError(err)
+		return errors.New("No such activity type")
+	}
+
 	if err := checkDate(p.Since); err != nil {
+		//e = aggregateError(err)
+		return err
+	}
+
+	if err := checkDate(p.Until); err != nil {
+		//e = aggregateError(err)
 		return err
 	}
 
@@ -364,10 +343,10 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 	// fields is a runtime option if not provided
 	fields := Fields{}
 	var keys []string
-	if len(p.Fields) == 0 {
+	if len(*p.ExportFlags.Fields) == 0 {
 		// get fields via api and assign
 		opt := &bulk.ActivityFieldListQueryOptions{ActivityType: p.ActivityType}
-		// TODO: default fields should be cached 
+		// TODO: default fields should be cached
 		r, err := client.Activities.ListFields(ctx, opt)
 		if err != nil {
 			fmt.Printf("Failed to list activity fields for activity type: %v", p.ActivityType)
@@ -378,7 +357,7 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 			fields[f.InternalName] = f.Statement
 		}
 	} else {
-		k, err := parseFieldsStr(p.Fields, &fields)
+		k, err := parseFieldsStr(*p.ExportFlags.Fields, &fields)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -386,7 +365,7 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 		keys = k
 	}
 
-	if len(p.Filter) == 0 {
+	if len(*p.ExportFlags.Filter) == 0 {
 		// get fields via api and construct the filter
 		// fields should be cached
 	}
@@ -397,18 +376,25 @@ func (p *ExportActivitiesOptions) Run(cmd *cobra.Command) error {
 	}
 
 	e := &bulk.Export{
-		AreSystemTimestampsInUTC: p.UTC,
-		AutoDeleteDuration: p.AutoDeleteDuration,
-		DataRetentionDuration: p.DataRetentionDuration,
-		Name: p.Name,
-		Fields: fields,
-		Filter: p.Filter,
-	//	MaxRecords: p.MaxRecords,
+		AreSystemTimestampsInUTC: *p.ExportFlags.AreSystemTimestampsInUTC,
+		AutoDeleteDuration:       *p.ExportFlags.StagingFlags.AutoDeleteDuration,
+		DataRetentionDuration:    *p.ExportFlags.StagingFlags.DataRetentionDuration,
+		Name:                     *p.ExportFlags.Name,
+		Fields:                   fields,
+		Filter:                   *p.ExportFlags.Filter,
+		//	MaxRecords: p.MaxRecords,
 	}
 
-	if p.MaxRecords > 0 {
-		e.MaxRecords = p.MaxRecords
+	if *p.ExportFlags.MaxRecords > 0 {
+		e.MaxRecords = *p.ExportFlags.MaxRecords
 	}
+
+	data, err := json.MarshalIndent(e, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	data = append(data, '\n')
 
 	e, err = client.Activities.CreateExport(ctx, e)
 	if err != nil {
