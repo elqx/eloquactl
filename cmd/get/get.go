@@ -62,6 +62,7 @@ func NewCmdGet() *cobra.Command {
 	cmd.AddCommand(NewCmdGetCdoFields())
 	cmd.AddCommand(NewCmdGetContactFields())
 	cmd.AddCommand(NewCmdGetEmails())
+	cmd.AddCommand(NewCmdGetEmailGroups())
 	cmd.AddCommand(NewCmdGetForms())
 
 	return cmd

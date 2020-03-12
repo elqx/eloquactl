@@ -105,6 +105,18 @@ func (p *TablePrinter) PrintResource(r interface{}, w io.Writer) error {
 
 			fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t\n", c.Id, c.Name, c.CurrentStatus, c.CreatedAt, c.CreatedBy, c.UpdatedAt, c.UpdatedBy)
 		}
+	case []rest.EmailGroup:
+		fields := []string{"id", "name", "currentStatus", "createdAt", "createdBy", "updatedAt", "updatedBy"}
+		for i, c := range r {
+			if i == 0 {
+				for _, field := range fields {
+					headers = append(headers, strings.ToUpper(field))
+				}
+				printHeader(headers, w)
+			}
+
+			fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t\n", c.Id, c.Name, c.CurrentStatus, c.CreatedAt, c.CreatedBy, c.UpdatedAt, c.UpdatedBy)
+		}
 	}
 	return nil
 }

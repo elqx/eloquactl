@@ -39,6 +39,10 @@ func (p *NdjPrinter) PrintResource(r interface{}, w io.Writer) error {
 		for _, item := range r {
 			printItem(&w, item)
 		}
+	case []rest.EmailGroup:
+		for _, item := range r {
+			printItem(&w, item)
+		}
 	}
 
 	return nil
